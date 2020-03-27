@@ -24,32 +24,45 @@ class Table(object):
         self._table_dict = table_dict
         self.auto_commit = auto_commit
         self.echo = echo
-        self._table_fields = [item['name'] for item in self.table_dict]
+        self._table_fields = [item['name'] for item in self._table_dict]
         # 使用SqliteDatabase 因为可以自动维护conn
         # 同时考虑: 因为fetchall需要，所以设计一个SqliteTable只有一个
         # 固定的cursor
         self._cursor = self._database.conn.cursor()
 
-    def create_table(self, create_index=True, only_if_not_exists=True):
+    def try_create(self, create_index=False):
+        self.create(create_index, only_if_not_exists=True)
+
+    def create(self, create_index=False, only_if_not_exists=False):
+        # create or raise
         easy_create_table(self.conn, self._cursor, self._table_name, 
-                          self.table_dict, 
+                          self._table_dict, 
                           create_index=create_index, 
                           only_if_not_exists=only_if_not_exists,
                           echo=self.echo)
 
-    def create_index(self, only_if_not_exists=True):
+    def try_create_index(self):
+        # create or raise
+        self.create_index(only_if_not_exists=True)
+
+    def create_index(self, only_if_not_exists=False):
         easy_create_index(self.conn, self._cursor, self._table_name, 
-                          self.table_dict, 
+                          self._table_dict, 
                           only_if_not_exists=only_if_not_exists,
                           echo=self.echo)
 
     def execute(self, sql, commit=None):
-        self._cursor.execute(sql)
+        if self.echo:
+            print('SQL: %s' % sql)
+        n = self._cursor.execute(sql)
+        # print('res', n)
         if commit or self.auto_commit:
             self.commit()
 
     def executemany(self, sql, list_values, commit=True):
         # default: commit
+        if self.echo:
+            print('SQL: %s' % sql)
         self._cursor.executemany(sql, list_values)
         if commit or self.auto_commit:
             self.commit()
@@ -59,32 +72,40 @@ class Table(object):
         data = self._cursor.fetchall()
         return data
 
-    def update(self, kv, where_stmt, commit=None):
+    def dict_update(self, kv, where, commit=None):
         sql = 'update %s' % self._table_name 
-        kv_string = ' and '.join(['%s="%s"' % (str(k), str(v)) \
+        # fixed:  and --> ','
+        kv_string = ','.join(['%s="%s"' % (str(k), str(v)) \
                                   for k, v in kv.items()])
         sql += ' set ' + kv_string
-        if where_stmt:
-            sql += ' where ' + where_stmt
+        if where:
+            sql += ' where ' + where
         self.execute(sql, commit=commit)
 
-    def select(self, fields, where_stmt, commit=None):
+    def dict_select(self, fields, where, option=None):
         if fields is None:
-            field_string = ','.join(self.self.table_fields)
+            fields = self._table_fields
+        elif isinstance(fields, (tuple, list)):
+            pass
+        elif isinstance(fields, str):
+            # string: id, name,
+            fields = [f.strip() for f in fields.split(',')]
         else:
-            if isinstance(fields, (tuple, list)):
-                field_string = ','.join(fields)
-            else:
-                # string: id, name,
-                field_string = fields
+            assert('Bad field')
+        field_string = ','.join(fields)
 
         sql = 'select %s' % field_string
         sql += ' from %s' % self._table_name
-        sql += ' where %s' % where_stmt
-        self.execute(sql, commit=commit)
+        sql += ' where %s' % where
+        if option:
+            sql += ' %s' % option
+        self.execute(sql)
+        data = self.fetchall()
+        rv = [dict(zip(fields, tu)) for tu in data]
+        return rv
 
     # utils
-    def insert_dict(self, kv, action='insert into', commit=None):
+    def dict_insert(self, kv, action='insert into', commit=None):
         if not kv:
             return
         action = self._legalize_insert_action(action)
@@ -92,29 +113,64 @@ class Table(object):
         keys = list(kv.keys())
         values = list(kv.values())
         key_string = ','.join([str(key)for key in keys])
-        value_string = ','.join([str(v) for v in values])
+        value_string = ','.join(['"%s"' % str(v) for v in values])
         sql = '%s %s (%s) values (%s)' % (action, self._table_name, 
                                           key_string, value_string)
         # commit
         self.execute(sql, commit=commit)
 
-    def insert_dict_many(self, list_kv, action='insert into', commit=True):
-        # 要求keys一致
+    def dict_insert_many(self, list_kv, action='insert into', commit=None):
+        # 要求keys一致: 但并不检验
         if not list_kv:
             return
         action = self._legalize_insert_action(action)
 
         list_values = []
         fields = list(list_kv[0].keys())
+        n_fields = len(fields)
         for kv in list_kv:
             list_values.append(tuple(kv.values()))
-        num_fields = len(fields)
 
         field_string = ','.join([str(key)for key in fields])
         sql = '%s %s (%s) values (%s)' % (action, self._table_name, 
                                           field_string,
-                                          ','.join(['?'] * num_fields))
+                                          ','.join(['?'] * n_fields))
         self.executemany(sql, list_values, commit=commit)
+
+    def delete(self, fields, where):
+        sql = 'delete ' 
+        sql += ' from %s' % self._table_name
+        sql += ' where %s' % where
+        self.execute(sql, commit=commit)
+
+    def delete_all(self):
+        sql = 'delete from %s' % self._table_name
+        self.execute(sql, commit=True)
+
+    def drop(self):
+        sql = 'drop table %s' % self._table_name
+        self.execute(sql, commit=True)
+
+    def drop_all_index(self):
+        # https://stackoverflow.com/questions/2121583/how-to-drop-all-indexes-of-a-sqlite-table
+        list_index = self.get_all_index()
+        print('list:', list_index)
+        for index in list_index:
+            print('drop index ...')
+            self.drop_index(index)
+
+    def get_all_index(self):
+        sql = ("SELECT name FROM sqlite_master " 
+               "WHERE type == 'index' AND "
+               "tbl_name == '%s'" % self._table_name)
+        self.execute(sql)
+        data = self.fetchall()
+        return [it[0] for it in data]
+
+    def drop_index(self, index):
+        sql = 'drop index %s' % index
+        print(sql)
+        self.execute(sql, commit=True)
 
     def commit(self):
         try:
@@ -145,6 +201,6 @@ class Table(object):
         action = action.strip().lower()
         if not action.endswith('into'):
             action += ' into'
-        assert(action in ['insert into', 'insert or ignore into'
+        assert(action in ['insert into', 'insert or ignore into',
                           'insert or replace into'])
         return action

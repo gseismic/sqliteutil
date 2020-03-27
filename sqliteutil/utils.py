@@ -96,7 +96,8 @@ def try_create_index(conn, cur, table_name, field, option='ASC',
     else:
         base_sql = 'CREATE INDEX'
 
-    sql = '%s %s_index on %s (%s ' % (base_sql, field, table_name, field)
+    # 增加table名
+    sql = '%s %s_%s_index on %s (%s ' % (base_sql, table_name, field, table_name, field)
     if option:
         sql += option
 

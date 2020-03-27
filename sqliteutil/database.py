@@ -17,6 +17,7 @@ class Database(object):
     def init_db(self):
         if self._check_dir_exist:
             db_dirname = os.path.dirname(os.path.abspath(self.db_file))
+            print('db dir: %s' % db_dirname)
             if not os.path.exists(db_dirname):
                 print('Making dir: %s ...' % db_dirname)
                 os.makedirs(db_dirname)
