@@ -15,7 +15,7 @@ class Table(object):
     设计原则： 只有commit抛出的异常才catch
     """
     def __init__(self, database_or_db_file, table_name, table_dict, 
-                 auto_commit=True, echo=False, db_options={}):
+                 auto_commit=False, echo=False, db_options={}):
         if isinstance(database_or_db_file, str):
             self._database = Database(db_file=database_or_db_file,
                                       **db_options)
