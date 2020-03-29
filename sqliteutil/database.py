@@ -7,10 +7,11 @@ class Database(object):
     """
     如果文件不存在，自动创建
     """
-    def __init__(self, db_file, init=True, check_dir_exist=True):
+    def __init__(self, db_file, init=True, check_dir_exist=True, **kwargs):
         self.db_file = db_file
         self._check_dir_exist = check_dir_exist
         self._conn = None
+        self._kwargs = kwargs
         if init:
             self.init_db()
 
@@ -21,7 +22,7 @@ class Database(object):
             if not os.path.exists(db_dirname):
                 print('Making dir: %s ...' % db_dirname)
                 os.makedirs(db_dirname)
-        self._conn = sqlite3.connect(self.db_file)
+        self._conn = sqlite3.connect(self.db_file, **self._kwargs)
 
     def get_conn(self):
         if not self._conn:
