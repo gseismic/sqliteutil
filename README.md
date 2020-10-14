@@ -1,13 +1,5 @@
-# sqliteutil
-sqlite3 utils class/function
 
-增删查改
-    create()
-    try_create() if table exists, ignore 
-    create_index() 
-    try_create_index() 
-    dict_insert
-    dict_select
-    dict_update
-    delete
-    delete_all
+# 
+## v1 原始设计
+## v2 2020-05-10 14:22:30 新设计 更合理
+## v3 2020-07-03 12:51:31 tododing 
