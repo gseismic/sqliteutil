@@ -1,9 +1,11 @@
+import pytest
 from sqliteutil import Database, Table
 
 
 def test_local_db():
     db_file = 'db_test.db'
     db = Database(db_file)
+    print('db_file', db_file)
 
 
 def test_local_dir_db():
@@ -12,8 +14,9 @@ def test_local_dir_db():
 
 
 def test_rootpath_db():
-    db_file = '/not_exist/db_test.db'
-    db = Database(db_file)
+    with pytest.raises(PermissionError):
+        db_file = '/not_exist/db_test.db'
+        db = Database(db_file)
 
 
 if __name__ == "__main__":
