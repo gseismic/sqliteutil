@@ -185,13 +185,6 @@ class Table(object):
         sql = 'delete from %s' % self._table_name
         self.execute(sql, commit=commit)
 
-    def drop_all_index(self):
-        # https://stackoverflow.com/questions/2121583/how-to-drop-all-indexes-of-a-sqlite-table
-        list_index = self.get_all_index()
-        for index in list_index:
-            print('drop index %s ...' % index)
-            self.drop_index(index)
-
     def get_all_index(self):
         # 获取当前已经被创建的index
         sql = ("SELECT name FROM sqlite_master " 
@@ -201,8 +194,19 @@ class Table(object):
         data = self.fetchall()
         return [it[0] for it in data]
 
+    def drop_all_index(self):
+        # https://stackoverflow.com/questions/2121583/how-to-drop-all-indexes-of-a-sqlite-table
+        list_index = self.get_all_index()
+        for index in list_index:
+            print('drop index %s ...' % index)
+            self.drop_index(index)
+
     def drop_index(self, index):
         sql = 'drop index %s' % index
+        self.execute(sql, commit=True)
+
+    def drop_table(self):
+        sql = 'drop table if exists %s' % self._table_name
         self.execute(sql, commit=True)
 
     def commit(self):
