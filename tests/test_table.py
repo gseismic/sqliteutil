@@ -1,4 +1,6 @@
 import config
+import pytest
+import sqlite3
 from sqliteutil import Database, Table
 
 
@@ -35,10 +37,14 @@ def test_table_2():
     table_name = 'table2'
     table = Table(db, table_name, table_dict, 
                   auto_commit=True, echo=True)
-    table.create_table()
+    table.drop_table()
+    table.create_table(ignore_if_exists=True)
     table.dict_insert({'id': 1, 'name': 'lsl1', 'age': '18'})
     table.dict_insert({'id': 2, 'name': 'lzl1', 'age': 0})
+    with pytest.raises(sqlite3.IntegrityError):
+        table.dict_insert({'id': 1, 'name': 'lsl1', 'age': '18'})
     table.commit()
+    db.close()
 
 
 def test_table_update1():
