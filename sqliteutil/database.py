@@ -41,6 +41,9 @@ class Database(object):
     def commit(self):
         self.conn.commit()
 
+    def rollback(self):
+        self.conn.rollback()
+
     def get_conn(self):
         if not self._conn:
             self.init()

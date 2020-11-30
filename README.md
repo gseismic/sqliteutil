@@ -15,3 +15,4 @@ sqlite3 utils class/function
 # ChangeLog
     from /Users/edz/Linghou/newton/servers/quotes/orderbook_sina/A6/main/pipelines
 	[@2020-11-16 15:30:20] Added: Table.drop_table
+    [@2020-11-30 16:15:09] Added: Database.rollback()
